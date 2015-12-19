@@ -3,8 +3,7 @@
     
 #include <stdint.h>
 #include <string.h>
-
-#define VOICES 12
+#include "global.h"
     
 typedef struct {
     uint16_t a;
@@ -13,7 +12,7 @@ typedef struct {
     uint16_t r;
     uint8_t state;
 } envelope;
-    
+
 typedef struct {
     uint32_t phase_accumulator; //q0.32
     volatile uint32_t phase_step; //q0.32
@@ -21,23 +20,36 @@ typedef struct {
     uint8_t velocity; //q0.8
     envelope env;
 } voice;  
-    
-extern const int16_t sine[512];
-extern const uint32_t notes[128];
-extern voice voice_bank[VOICES];
-extern uint8_t voice_queue[VOICES];
 
-void set_note(uint8_t v, uint8_t note, uint8_t velocity) {
-    voice_bank[v].velocity = 0;
-    voice_bank[v].phase_step = notes[note];
-    voice_bank[v].note = note;
-    voice_bank[v].velocity = velocity;
-}
+uint16_t pow2(uint8_t value);
+extern int16_t pitchbend;
+extern voice voice_bank[VOICES];
 
 int8_t find_note(uint8_t value) {
     for (int i=0; i<VOICES; i++) 
         if (voice_bank[i].velocity && voice_bank[i].note==value) return i;
     return -1;
+}
+
+uint32_t note_step_offset(uint8_t midi_note, int16_t shift) { // shift is signed 7q8 only!
+    midi_note+= (shift>>8); //make sure to clamp the note&shift later
+    shift&=0xff;
+    if (!shift) return notes[midi_note]; //skip calculations if no shift
+
+    uint64_t lerp = ((uint64_t)notes[midi_note])*(256-shift) + ((uint64_t)notes[midi_note+1])*shift;  //this 64-bit is going to bite me in the ass later
+    return lerp>>8; //linear interpolation for now!
+}
+
+void recalculate_step(voice* v) {
+    v->phase_step = note_step_offset(v->note, pitchbend);
+}
+
+void set_note(uint8_t v, uint8_t note, uint8_t velocity) {
+    voice_bank[v].velocity = 0;
+//    voice_bank[v].phase_step = notes[note];
+    voice_bank[v].note = note;
+    recalculate_step(voice_bank+v);
+    voice_bank[v].velocity = velocity;
 }
 
 void shiftr(int8_t voice) {

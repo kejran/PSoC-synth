@@ -1,17 +1,17 @@
 #include <project.h>
 #include "notes.h"
-
-#define INTERPOLATE
-#define SOFTCLIPPING
-
-#define Q16MUL(a, b) ((((a&0xffff)*b)>>16)+((a>>16)*b)) //multiplies xQ16 times xQ16
-#define Q16LERP(a, b, amount) (((b*amount)+(a*(256-amount)))>>8) //lerp between two q16 using q8
+#include "global.h"
 
 voice voice_bank[VOICES]={{0,0,0,0,0,0,0,0,0}};
 uint16_t global_volume = 65535/4; //q16;
 uint8_t voice_queue[VOICES];
-
+uint16_t pow2_table[9] = {0, 5931, 12400, 19454, 27146, 35534, 44681, 54658, 65535};
+int16_t pitchbend=0;
 uint8_t led_countdown=0;
+
+uint16_t pow2(uint8_t value) { //calculate 2^x-1
+    return Q16LERP(pow2_table[value>>8], pow2_table[(value>>8)+1], value&0xff);
+}
 
 int32_t clip (int32_t value) {   
 	if (value>32767) return 32767;
@@ -92,12 +92,19 @@ int main() {
         
         if ((value&0xf0)==0x80) { //note off
             note_off(uart_get_blocking());
-            uart_get_blocking();
+            //uart_get_blocking(); //useless, and just in case we have to deal with running status
         }
         
-        if ((value&0xf0)==0xB0) { // CC
+        if ((value&0xf0)==0xb0)  // CC
             cc_update(uart_get_blocking(), uart_get_blocking());
             
+        if ((value&0xf0)==0xe0) {//pitch bend
+            uint8_t lsb = uart_get_blocking(); //7-bit
+            uint8_t msb = uart_get_blocking(); //7-bit
+            int16_t pitch = lsb + (msb<<7) - 0x2000; //14-bit offset unsigned to signed q16
+            pitchbend = pitch>>6;
+            for (int i=0; i<VOICES; i++) 
+                recalculate_step(voice_bank+i);
         }
         
         if (value==0xfc) //midi stop
