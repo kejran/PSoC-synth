@@ -4,23 +4,31 @@
 #include <stdint.h>
 #include <string.h>
 
-#define VOICES 8
+#define VOICES 16
+    
+typedef struct {
+    uint16_t a;
+    uint16_t d;
+    uint16_t s;
+    uint16_t r;
+    uint8_t state;
+} envelope;
     
 typedef struct {
     uint32_t phase_accumulator; //q0.32
     volatile uint32_t phase_step; //q0.32
     uint8_t note;
     uint8_t velocity; //q0.8
+    envelope env;
 } voice;  
     
 extern const int16_t sine[512];
 extern const uint32_t notes[128];
 extern voice voice_bank[VOICES];
 extern uint8_t voice_queue[VOICES];
-    
-  
-    
+
 void set_note(uint8_t v, uint8_t note, uint8_t velocity) {
+    voice_bank[v].velocity = 0;
     voice_bank[v].phase_step = notes[note];
     voice_bank[v].note = note;
     voice_bank[v].velocity = velocity;
