@@ -1,12 +1,13 @@
 #include <project.h>
 #include "notes.h"
 
-//#define INTERPOLATE
+#define INTERPOLATE
 #define SOFTCLIPPING
 
 #define Q16MUL(a, b) ((((a&0xffff)*b)>>16)+((a>>16)*b)) //multiplies xQ16 times xQ16
+#define Q16LERP(a, b, amount) (((b*amount)+(a*(256-amount)))>>8) //lerp between two q16 using q8
 
-voice voice_bank[VOICES]={{0,0,0,0}};
+voice voice_bank[VOICES]={{0,0,0,0,0,0,0,0,0}};
 uint16_t global_volume = 65535/4; //q16;
 uint8_t voice_queue[VOICES];
 
@@ -22,10 +23,9 @@ int32_t clip (int32_t value) {
 int16_t interpolate(uint32_t acc) {
     #ifdef INTERPOLATE
         int id1 = acc>>23;
-        int id2 = (id1+1)&0x1ffff;
+        int id2 = (id1+1)&511;
         int offset = (acc>>15)&0xff;
-        int32_t res = sine[id1]*offset + sine[id2]*(256-offset);
-        return res>>8;
+        return Q16LERP(sine[id1], sine[id2], offset);
     #else
         return sine[acc>>23];
     #endif

@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define VOICES 16
+#define VOICES 12
     
 typedef struct {
     uint16_t a;

@@ -11,9 +11,10 @@ Application requires a filtered DAC with at least  8-bit depth. Implementation u
 ## Features
 The currently implemented features are:
 - Sine wave generation with DSS
-- voice polyphony
+- Voice polyphony
 - MIDI over UART
 - Smooth output clipping to [-1, 1] range
+- Alias-free waveforms on any frequency via interpolation
 
 Planned features include:
 - ADSR envelope for notes
